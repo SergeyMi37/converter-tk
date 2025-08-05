@@ -2,8 +2,8 @@
 ## Фото-сортировцик с созданием поддиректорий с датой создания, переворотом и обратным геокодированием на основе EXIF данных
 
 ``` bash
-git clone https://github.com/SergeyMi37/photo-sorter
-cd photo-sorter
+git clone https://github.com/SergeyMi37/converter-tk
+cd converter-tk
 ```
 
 Create virtual environment (optional)
@@ -25,11 +25,11 @@ pip install -r requirements.txt
 
 Укажите исходную и целевую директорию
 ``` bash
-python selector-dirs-tk.py 
+python converter-files-tk.py 
 ```
 
 ### Во время написания программы не один ИИ не пострадал, но потрепан был изрядно GigaChat (@gigachat_bot)
-Его собрат GigaCode смотрелся не очень, но старался помогать в VsCode)
+#### Его собрат GigaCode тоже старается помогать в VsCode
 
 
  Для сборки исполняемого файла (*.exe) вашей программы на Tkinter для Windows используется инструмент **PyInstaller**. Вот пошаговая инструкция по сборке релиза приложения:
