@@ -18,6 +18,9 @@ class FileConverterApp:
         self.target_dir = tk.StringVar()
         self.conversion_mode = tk.StringVar(value="rtf -> docx")
         
+        # Привязываем событие закрытия по клавише Esc
+        self.root.bind('<Escape>', lambda event: self.root.destroy())        
+        
         # Создаем интерфейс
         self.create_widgets()
         
@@ -43,8 +46,10 @@ class FileConverterApp:
         tk.OptionMenu(self.root, self.conversion_mode, *modes).grid(row=2, column=1, padx=5, pady=5, sticky="w")
         
         # Кнопка конвертации
-        tk.Button(self.root, text="Конвертировать", command=self.convert_files, bg="green", fg="white").grid(row=3, column=1, pady=10)
-        
+        tk.Button(self.root, text="Конвертировать", command=self.convert_files, bg="green", fg="white").grid(row=3, column=1, padx=10,sticky='e')
+        # Кнопка закрытия
+        tk.Button(self.root, text="Закрыть", command=self.root.destroy, bg="red", fg="white").grid(row=3, column=2, pady=10,sticky='w')
+
     def browse_source(self):
         directory = filedialog.askdirectory()
         if directory:
@@ -54,7 +59,7 @@ class FileConverterApp:
         directory = filedialog.askdirectory()
         if directory:
             self.target_dir.set(directory)
-    
+
     def convert_files(self):
         source = self.source_dir.get()
         target = self.target_dir.get()
@@ -196,7 +201,7 @@ if __name__ == "__main__":
     
     # Проверяем установлен ли wkhtmltopdf для pdfkit
     try:
-        pdfkit.from_string('test', 'test.pdf')
+        pdfkit.from_string('test', 'doc/test.pdf')
     except OSError:
         print("Установите wkhtmltopdf для работы с PDF:")
         print("Скачайте с https://wkhtmltopdf.org/downloads.html")
