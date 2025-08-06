@@ -25,7 +25,7 @@ pip install -r requirements.txt
 
 Укажите исходную и целевую директорию
 ``` bash
-python converter-files-tk.py 
+python converter-libreoffice.py 
 ```
 
 ### Во время написания программы не один ИИ не пострадал, но потрепан был изрядно GigaChat (@gigachat_bot)
@@ -46,7 +46,7 @@ pip install pyinstaller
 #### 3. Сборка с помощью PyInstaller
 Откройте терминал и перейдите в папку вашего проекта. Затем выполните команду:
 ```bash
-pyinstaller --onefile --windowed selector-dirs-tk.py
+pyinstaller --onefile --windowed converter-libreoffice.py
 ```
 Параметры команды:
 - `--onefile`: Создает один файл `.exe`, содержащий всю необходимую библиотеку.
