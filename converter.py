@@ -1,7 +1,232 @@
-import os, json, sys, subprocess, tempfile
+# Вот модифицированная версия проекта с вынесенными функциями конвертации для использования из других программ и сервисов:
+
+# ```python
+import os
+import json
+import sys
+import subprocess
+import tempfile
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from pathlib import Path
+from typing import Optional, Tuple, List
+
+class DocumentConverter:
+    """Класс для конвертации документов, который можно использовать в других программах"""
+    
+    @staticmethod
+    def find_libreoffice() -> Optional[str]:
+        """Поиск пути к LibreOffice в системе"""
+        paths = []
+        
+        if sys.platform == 'win32':
+            paths = [
+                'soffice',
+                'libreoffice',
+                r'C:\Program Files\LibreOffice\program\soffice.exe',
+                r'C:\Program Files (x86)\LibreOffice\program\soffice.exe'
+            ]
+        else:
+            paths = [
+                'libreoffice',
+                'soffice',
+                '/usr/bin/libreoffice',
+                '/usr/bin/soffice',
+                '/Applications/LibreOffice.app/Contents/MacOS/soffice'
+            ]
+        
+        for path in paths:
+            try:
+                if sys.platform == 'win32' and ('\\' in path or '/' in path):
+                    if os.path.exists(path):
+                        return path
+                else:
+                    process = subprocess.run(['which', path], 
+                                          stdout=subprocess.PIPE, 
+                                          stderr=subprocess.PIPE)
+                    if process.returncode == 0:
+                        return path.strip()
+            except:
+                continue
+        return None
+
+    @staticmethod
+    def convert_file(input_path: str, 
+                   output_path: str, 
+                   output_format: str = 'docx',
+                   progress_callback: Optional[callable] = None) -> Tuple[bool, str]:
+        """
+        Конвертирует один файл
+        
+        Args:
+            input_path: Путь к исходному файлу
+            output_path: Путь для сохранения результата
+            output_format: Формат для конвертации (docx, pdf, odt)
+            progress_callback: Функция для отслеживания прогресса
+            
+        Returns:
+            Tuple[bool, str]: (Успех/Неудача, Сообщение об ошибке)
+        """
+        try:
+            libreoffice_path = DocumentConverter.find_libreoffice()
+            if not libreoffice_path:
+                return False, "LibreOffice не найден. Убедитесь, что он установлен."
+
+            if progress_callback:
+                progress_callback(10, f"Начало конвертации {os.path.basename(input_path)}")
+
+            # Специальная обработка для HTML -> DOCX
+            if input_path.lower().endswith('.html') and output_path.lower().endswith('.docx'):
+                return DocumentConverter.convert_html_to_docx(input_path, output_path, progress_callback)
+
+            # Подготовка команды
+            if sys.platform == 'win32':
+                command = f'"{libreoffice_path}" --headless --convert-to {output_format} --outdir "{os.path.dirname(output_path)}" "{input_path}"'
+                startupinfo = subprocess.STARTUPINFO()
+                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                startupinfo.wShowWindow = subprocess.SW_HIDE
+                
+                process = subprocess.run(
+                    command,
+                    startupinfo=startupinfo,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    shell=True,
+                    encoding='utf-8',
+                    errors='ignore'
+                )
+            else:
+                command = [
+                    libreoffice_path,
+                    '--headless',
+                    '--convert-to',
+                    output_format,
+                    '--outdir',
+                    os.path.dirname(output_path),
+                    input_path
+                ]
+                process = subprocess.run(
+                    command,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    encoding='utf-8',
+                    errors='ignore'
+                )
+
+            if progress_callback:
+                progress_callback(50, f"Обработка {os.path.basename(input_path)}")
+
+            if process.returncode != 0:
+                error_msg = process.stderr if process.stderr else "Неизвестная ошибка"
+                return False, f"Ошибка конвертации: {error_msg}"
+
+            # Проверяем результат
+            base_name = os.path.splitext(os.path.basename(input_path))[0]
+            possible_output = os.path.join(
+                os.path.dirname(output_path),
+                f"{base_name}.{output_format.split(':')[0]}"
+            )
+            
+            if os.path.exists(possible_output):
+                if possible_output != output_path:
+                    os.rename(possible_output, output_path)
+                if progress_callback:
+                    progress_callback(100, f"Успешно: {os.path.basename(input_path)}")
+                return True, "Конвертация успешно завершена"
+            else:
+                return False, "Файл не был создан после конвертации"
+
+        except Exception as e:
+            return False, f"Ошибка при конвертации: {str(e)}"
+
+    @staticmethod
+    def convert_html_to_docx(input_path: str, 
+                           output_path: str,
+                           progress_callback: Optional[callable] = None) -> Tuple[bool, str]:
+        """Специальный метод для конвертации HTML в DOCX"""
+        try:
+            if progress_callback:
+                progress_callback(20, "Начало конвертации HTML в DOCX")
+
+            # Создаем временный ODT файл
+            temp_odt = os.path.join(tempfile.gettempdir(), f"temp_{os.path.basename(input_path)}.odt")
+            
+            # Конвертируем HTML -> ODT
+            success, msg = DocumentConverter.convert_file(input_path, temp_odt, 'odt', progress_callback)
+            if not success:
+                return False, msg
+
+            if progress_callback:
+                progress_callback(60, "Конвертация ODT в DOCX")
+
+            # Конвертируем ODT -> DOCX
+            result = DocumentConverter.convert_file(temp_odt, output_path, 'docx', progress_callback)
+            
+            # Удаляем временный файл
+            try:
+                os.remove(temp_odt)
+            except:
+                pass
+            
+            return result
+        
+        except Exception as e:
+            return False, f"Ошибка при конвертации HTML в DOCX: {str(e)}"
+
+    @staticmethod
+    def convert_directory(source_dir: str, 
+                        target_dir: str, 
+                        conversion_mode: str = "docx -> pdf",
+                        progress_callback: Optional[callable] = None) -> Tuple[int, int, List[Tuple[str, str]]]:
+        """
+        Конвертирует все файлы в директории
+        
+        Args:
+            source_dir: Исходная директория
+            target_dir: Целевая директория
+            conversion_mode: Режим конвертации
+            progress_callback: Функция для отслеживания прогресса
+            
+        Returns:
+            Tuple[int, int, List[Tuple[str, str]]]: 
+                (Успешно, Всего, Список ошибок в формате (имя файла, ошибка))
+        """
+        try:
+            os.makedirs(target_dir, exist_ok=True)
+            
+            input_ext = conversion_mode.split()[0]
+            files = [f for f in os.listdir(source_dir) if f.lower().endswith(f'.{input_ext}')]
+            
+            if not files:
+                return 0, 0, [("", "Нет файлов для конвертации")]
+            
+            success_count = 0
+            errors = []
+            
+            for i, filename in enumerate(files, 1):
+                if progress_callback:
+                    progress_callback(int(i/len(files)*100), f"Обработка {filename}")
+                
+                input_file = os.path.join(source_dir, filename)
+                output_ext = conversion_mode.split('->')[1].strip()
+                output_file = os.path.join(target_dir, f"{os.path.splitext(filename)[0]}.{output_ext}")
+                
+                success, msg = DocumentConverter.convert_file(
+                    input_file, 
+                    output_file,
+                    output_ext,
+                    lambda p, m: progress_callback(p, m) if progress_callback else None
+                )
+                
+                if success:
+                    success_count += 1
+                else:
+                    errors.append((filename, msg))
+            
+            return success_count, len(files), errors
+            
+        except Exception as e:
+            return 0, 0, [("", f"Ошибка при обработке директории: {str(e)}")]
 
 class FileConverterApp:
     def __init__(self, root):
@@ -354,12 +579,61 @@ class FileConverterApp:
             messagebox.showerror("Ошибка", f"Произошла ошибка: {str(e)}")
             self.update_progress(0)  # Сбрасываем прогрессбар
 
+
+def convert_file_cli(input_path: str, output_path: str, output_format: str = 'docx'):
+    """Функция для вызова из командной строки"""
+    success, msg = DocumentConverter.convert_file(input_path, output_path, output_format)
+    print(f"Результат: {'Успешно' if success else 'Ошибка'}")
+    print(msg)
+    return 0 if success else 1
+
+
 if __name__ == "__main__":
-    try:
-        root = tk.Tk()
-        app = FileConverterApp(root)
-        root.mainloop()
-    except Exception as e:
-        print(f"Ошибка: {str(e)}")
-        print("Убедитесь, что LibreOffice установлен и доступен в PATH")
-        input("Нажмите Enter для выхода...")
+    # Если вызвано из командной строки с аргументами
+    if len(sys.argv) > 2:
+        input_file = sys.argv[1]
+        output_file = sys.argv[2]
+        format = sys.argv[3] if len(sys.argv) > 3 else 'docx'
+        sys.exit(convert_file_cli(input_file, output_file, format))
+    else:
+        # Запуск GUI
+        try:
+            root = tk.Tk()
+            app = FileConverterApp(root)
+            root.mainloop()
+        except Exception as e:
+            print(f"Ошибка: {str(e)}")
+            input("Нажмите Enter для выхода...")
+
+# Из другого Python-скрипта:
+
+# python
+# from converter import DocumentConverter
+
+# # Конвертация одного файла
+# success, message = DocumentConverter.convert_file("input.doc", "output.pdf", "pdf")
+
+# # Конвертация всей директории
+# success_count, total_files, errors = DocumentConverter.convert_directory(
+#     "source_folder",
+#     "target_folder",
+#     "docx -> pdf",
+#     lambda progress, msg: print(f"{progress}%: {msg}")
+# )
+# Из командной строки:
+
+# bash
+# python converter.py input.html output.docx
+# python converter.py input.odt output.pdf pdf
+# Как модуль в сервисе:
+
+# python
+# from fastapi import FastAPI
+# from converter import DocumentConverter
+
+# app = FastAPI()
+
+# @app.post("/convert")
+# async def convert_file(input_path: str, output_path: str):
+#     success, message = DocumentConverter.convert_file(input_path, output_path)
+#     return {"success": success, "message": message}
