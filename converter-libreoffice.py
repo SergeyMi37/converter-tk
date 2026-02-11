@@ -66,7 +66,7 @@ class FileConverterApp:
         tk.Entry(self.root, textvariable=self.target_dir, width=50).grid(row=1, column=1, padx=5, pady=5)
         tk.Button(self.root, text="Обзор...", command=self.browse_target).grid(row=1, column=2, padx=5, pady=5)
         
-        # Выбор режима конвертации
+        # Выбор режима конвертации:
         tk.Label(self.root, text="Режим конвертации:").grid(row=2, column=0, padx=5, pady=5, sticky="w")
         modes = [
             "docx -> pdf",
@@ -78,7 +78,8 @@ class FileConverterApp:
             "rtf -> pdf",
             "html -> docx",
             "html -> odt",
-            "html -> pdf"
+            "html -> pdf",
+            "pdf -> txt"
         ]
         tk.OptionMenu(self.root, self.conversion_mode, *modes).grid(row=2, column=1, padx=5, pady=5, sticky="w")
         
@@ -212,32 +213,28 @@ class FileConverterApp:
             except Exception as fallback_e:
                 raise Exception(f"Основной и альтернативный методы не сработали: {str(e)} | {str(fallback_e)}")
 
-    def convert_html_to_docx_fallback(self, input_file, output_file):
-        """Альтернативный метод конвертации HTML в DOCX"""
+    def convert_pdf_to_txt(self, input_file, output_file):
+        """Конвертация PDF в текстовый файл с помощью PyPDF2"""
         try:
-            from htmldocx import HtmlToDocx
-            from docx import Document
+            from PyPDF2 import PdfReader
             
-            with open(input_file, 'r', encoding='utf-8') as f:
-                html_content = f.read()
-            
-            # Создаем новый документ
-            doc = Document()
-            
-            # Инициализируем парсер
-            parser = HtmlToDocx()
-            
-            # Добавляем HTML-контент в документ
-            parser.add_html_to_document(html_content, doc)
-            
-            # Сохраняем результат
-            doc.save(output_file)
-            return True
-            
+            with open(input_file, 'rb') as f:
+                reader = PdfReader(f)
+                
+                text = ""
+                for page_num in range(len(reader.pages)):
+                    page = reader.pages[page_num]
+                    text += page.extract_text()
+                
+                with open(output_file, 'w', encoding='utf-8') as txt_file:
+                    txt_file.write(text)
+                
+                return True
+                
         except ImportError:
-            raise Exception("Для альтернативного метода требуется установка python-docx и htmldocx")
+            raise Exception("Для конвертации PDF в TXT требуется PyPDF2. Установите: pip install PyPDF2")
         except Exception as e:
-            raise Exception(f"Ошибка в альтернативном методе: {str(e)}")
+            raise Exception(f"Ошибка при конвертации PDF в TXT: {str(e)}")
 
     def get_libreoffice_format(self, mode):
         """Получаем формат для LibreOffice на основе режима конвертации"""
@@ -246,7 +243,8 @@ class FileConverterApp:
             'docx': 'docx',
             'odt': 'odt',
             'rtf': 'docx',  # Изменено для RTF -> DOCX
-            'html': 'docx'
+            'html': 'docx',
+            'txt': 'txt'
         }
         return format_map.get(mode.split('->')[1].strip(), "")
 
@@ -293,7 +291,8 @@ class FileConverterApp:
         format_map = {
             'pdf': 'pdf',
             'docx': 'docx',
-            'odt': 'odt'
+            'odt': 'odt',
+            'txt': 'txt'
         }
         return format_map.get(mode.split('->')[1].strip(), "")
 
@@ -342,8 +341,12 @@ class FileConverterApp:
                     output_format = self.get_libreoffice_format(mode)
                     
                     # Выполняем конвертацию
-                    if self.convert_with_libreoffice(input_file, output_file, output_format):
-                        success_count += 1
+                    if mode == "pdf -> txt":
+                        if self.convert_pdf_to_txt(input_file, output_file):
+                            success_count += 1
+                    else:
+                        if self.convert_with_libreoffice(input_file, output_file, output_format):
+                            success_count += 1
                 except Exception as e:
                     print(f"Ошибка при обработке {filename}: {str(e)}")
             

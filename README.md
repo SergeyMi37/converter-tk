@@ -23,6 +23,10 @@ Install all requirements:
 pip install -r requirements.txt
 ```
 
+### Для конвертации PDF в TXT требуется установить pdftotext:
+- **Linux**: `sudo apt install poppler-utils`
+- **Windows**: Скачайте Xpdf с https://www.xpdfreader.com/download.html и добавьте путь к pdftotext в PATH
+
 Укажите исходную и целевую директорию
 ``` bash
 python converter-libreoffice.py 
