@@ -1,7 +1,0 @@
-pdfkit
-pypandoc
-python-docx
-htmldocx
-striprtf
-comtypes
-markdown
