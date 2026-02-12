@@ -1,3 +1,7 @@
 PyPDF2
 python-docx
-pdftotext
+# pdftotext
+
+pdfkit
+pypandoc
+htmldocx

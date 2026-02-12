@@ -14,8 +14,8 @@ source env/bin/activate
 
 Create virtual environment for Windows
 ``` bash
-python -m venv env
-source env/Scripts/activate
+python -m venv env-win
+source env-win/Scripts/activate
 ```
 
 Install all requirements:
@@ -51,6 +51,9 @@ pip install pyinstaller
 Откройте терминал и перейдите в папку вашего проекта. Затем выполните команду:
 ```bash
 pyinstaller --onefile --windowed converter-libreoffice.py
+
+или
+pyinstaller converter-libreoffice.spec --clean 
 ```
 Параметры команды:
 - `--onefile`: Создает один файл `.exe`, содержащий всю необходимую библиотеку.
