@@ -79,7 +79,9 @@ class FileConverterApp:
             "html -> docx",
             "html -> odt",
             "html -> pdf",
-            "pdf -> txt"
+            "pdf -> txt",
+            "doc -> txt",
+            "docx -> txt"
         ]
         tk.OptionMenu(self.root, self.conversion_mode, *modes).grid(row=2, column=1, padx=5, pady=5, sticky="w")
         
@@ -236,6 +238,15 @@ class FileConverterApp:
         except Exception as e:
             raise Exception(f"Ошибка при конвертации PDF в TXT: {str(e)}")
 
+    def convert_doc_to_txt(self, input_file, output_file):
+        """Конвертация DOC/DOCX в текстовый файл с помощью LibreOffice"""
+        try:
+            # Используем LibreOffice для конвертации в текстовый формат
+            output_format = "txt"
+            return self.convert_with_libreoffice(input_file, output_file, output_format)
+        except Exception as e:
+            raise Exception(f"Ошибка при конвертации DOC/DOCX в TXT: {str(e)}")
+
     def get_libreoffice_format(self, mode):
         """Получаем формат для LibreOffice на основе режима конвертации"""
         format_map = {
@@ -244,7 +255,9 @@ class FileConverterApp:
             'odt': 'odt',
             'rtf': 'docx',  # Изменено для RTF -> DOCX
             'html': 'docx',
-            'txt': 'txt'
+            'txt': 'txt',
+            'doc': 'txt',
+            'docx': 'txt'
         }
         return format_map.get(mode.split('->')[1].strip(), "")
 
@@ -292,7 +305,9 @@ class FileConverterApp:
             'pdf': 'pdf',
             'docx': 'docx',
             'odt': 'odt',
-            'txt': 'txt'
+            'txt': 'txt',
+            'doc': 'txt',
+            'docx': 'txt'
         }
         return format_map.get(mode.split('->')[1].strip(), "")
 
@@ -315,7 +330,7 @@ class FileConverterApp:
             os.makedirs(target, exist_ok=True)
             
             # Получаем список файлов для обработки
-            input_ext = mode.split()[0]
+            input_ext = mode.split(' -> ')[0].strip()
             files = [f for f in os.listdir(source) if f.lower().endswith(f'.{input_ext}')]
             
             if not files:
@@ -343,6 +358,9 @@ class FileConverterApp:
                     # Выполняем конвертацию
                     if mode == "pdf -> txt":
                         if self.convert_pdf_to_txt(input_file, output_file):
+                            success_count += 1
+                    elif mode in ("doc -> txt", "docx -> txt"):
+                        if self.convert_doc_to_txt(input_file, output_file):
                             success_count += 1
                     else:
                         if self.convert_with_libreoffice(input_file, output_file, output_format):
