@@ -80,6 +80,7 @@ class FileConverterApp:
             "html -> odt",
             "html -> pdf",
             "pdf -> txt",
+            "pdf -> txt (OCR)",
             "doc -> txt",
             "docx -> txt"
         ]
@@ -236,7 +237,73 @@ class FileConverterApp:
         except ImportError:
             raise Exception("Для конвертации PDF в TXT требуется PyPDF2. Установите: pip install PyPDF2")
         except Exception as e:
-            raise Exception(f"Ошибка при конвертации PDF в TXT: {str(e)}")
+            # Если PyPDF2 не смог извлечь текст, пробуем использовать OCR
+            print(f"PyPDF2 не смог извлечь текст, пробуем OCR: {str(e)}")
+            return self.convert_pdf_to_txt_ocr(input_file, output_file)
+
+    def convert_pdf_to_txt_ocr(self, input_file, output_file):
+        """Конвертация PDF в текстовый файл с использованием OCRmyPDF для сканированных PDF"""
+        try:
+            import ocrmypdf
+            import tempfile
+            
+            # Создаем временный файл для PDF с распознанным текстом
+            with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as temp_pdf:
+                temp_pdf_path = temp_pdf.name
+            
+            # Используем OCRmyPDF для добавления распознанного текста к PDF
+            # Используем только те параметры, которые не требуют дополнительных зависимостей
+            ocrmypdf.ocr(input_file, temp_pdf_path, deskew=True)
+            
+            # Теперь извлекаем текст из обработанного PDF
+            from PyPDF2 import PdfReader
+            with open(temp_pdf_path, 'rb') as f:
+                reader = PdfReader(f)
+                text = ""
+                for page_num in range(len(reader.pages)):
+                    page = reader.pages[page_num]
+                    text += page.extract_text()
+                
+                with open(output_file, 'w', encoding='utf-8') as txt_file:
+                    txt_file.write(text)
+            
+            # Удаляем временный файл
+            os.unlink(temp_pdf_path)
+            
+            return True
+            
+        except ImportError:
+            raise Exception("Для конвертации сканированного PDF в TXT требуется ocrmypdf. Установите: pip install ocrmypdf[tesseract]")
+        except Exception as e:
+            # Проверяем, связан ли сесс с отсутствием Tesseract или других программ
+            error_msg = str(e)
+            if "Could not find program" in error_msg and "tesseract" in error_msg:
+                raise Exception("Для OCR-конвертации PDF требуется Tesseract. Установите Tesseract OCR из https://github.com/UB-Mannheim/tesseract/wiki и добавьте в PATH")
+            elif "Could not find program" in error_msg and "unpaper" in error_msg:
+                # Пробуем запустить без параметров, требующих дополнительные программы
+                try:
+                    ocrmypdf.ocr(input_file, temp_pdf_path, deskew=True)
+                    
+                    # Теперь извлекаем текст из обработанного PDF
+                    from PyPDF2 import PdfReader
+                    with open(temp_pdf_path, 'rb') as f:
+                        reader = PdfReader(f)
+                        text = ""
+                        for page_num in range(len(reader.pages)):
+                            page = reader.pages[page_num]
+                            text += page.extract_text()
+                        
+                        with open(output_file, 'w', encoding='utf-8') as txt_file:
+                            txt_file.write(text)
+                    
+                    # Удаляем временный файл
+                    os.unlink(temp_pdf_path)
+                    
+                    return True
+                except Exception as fallback_e:
+                    raise Exception(f"Ошибка при конвертации сканированного PDF в TXT: {str(fallback_e)}")
+            else:
+                raise Exception(f"Ошибка при конвертации сканированного PDF в TXT: {str(e)}")
 
     def convert_doc_to_txt(self, input_file, output_file):
         """Конвертация DOC/DOCX в текстовый файл с помощью LibreOffice"""
@@ -331,7 +398,10 @@ class FileConverterApp:
             
             # Получаем список файлов для обработки
             input_ext = mode.split(' -> ')[0].strip()
-            files = [f for f in os.listdir(source) if f.lower().endswith(f'.{input_ext}')]
+            if input_ext == "pdf":
+                files = [f for f in os.listdir(source) if f.lower().endswith('.pdf')]
+            else:
+                files = [f for f in os.listdir(source) if f.lower().endswith(f'.{input_ext}')]
             
             if not files:
                 messagebox.showwarning("Предупреждение", f"Нет файлов .{input_ext} для конвертации в выбранной директории")
@@ -358,6 +428,9 @@ class FileConverterApp:
                     # Выполняем конвертацию
                     if mode == "pdf -> txt":
                         if self.convert_pdf_to_txt(input_file, output_file):
+                            success_count += 1
+                    elif mode == "pdf -> txt (OCR)":
+                        if self.convert_pdf_to_txt_ocr(input_file, output_file):
                             success_count += 1
                     elif mode in ("doc -> txt", "docx -> txt"):
                         if self.convert_doc_to_txt(input_file, output_file):

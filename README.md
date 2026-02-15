@@ -1,4 +1,3 @@
-
 ## Фото-сортировцик с созданием поддиректорий с датой создания, переворотом и обратным геокодированием на основе EXIF данных
 
 ``` bash
@@ -26,6 +25,13 @@ pip install -r requirements.txt
 ### Для конвертации PDF в TXT требуется установить pdftotext:
 - **Linux**: `sudo apt install poppler-utils`
 - **Windows**: Скачайте Xpdf с https://www.xpdfreader.com/download.html и добавьте путь к pdftotext в PATH
+
+### Для конвертации сканированных PDF в TXT с распознаванием текста (OCR) установите:
+```bash
+pip install ocrmypdf[tesseract]
+```
+- **Windows**: Также может потребоваться установка Tesseract OCR из https://github.com/UB-Mannheim/tesseract/wiki
+- **Linux**: `sudo apt install tesseract-ocr`
 
 Укажите исходную и целевую директорию
 ``` bash
@@ -92,7 +98,7 @@ pyinstaller --onefile --windowed --add-data "logo.png;." имя_скрипта.p
 
 Таким образом, у вас получится полноценное приложение с удобным процессом установки.
 
-Следуя этим шагам, вы сможете легко собирать релизы ваших приложений на Tkinter для Windows.\[[1](https://www.pythonguis.com/tutorials/packaging-tkinter-applications-windows-pyinstaller/)]\[[2](https://www.pythonguis.com/tutorials/packaging-tkinter-applications-windows-pyinstaller/)]
+Следуя этим шагам, вы сможете легко собирать релизы ваших приложений на Tkinter для Windows.[[1](https://www.pythonguis.com/tutorials/packaging-tkinter-applications-windows-pyinstaller/)][[2](https://www.pythonguis.com/tutorials/packaging-tkinter-applications-windows-pyinstaller/)]
 
 *Для ответа использовал актуальные интернет-источники:*
 
