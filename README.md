@@ -1,4 +1,21 @@
-## Фото-сортировцик с созданием поддиректорий с датой создания, переворотом и обратным геокодированием на основе EXIF данных
+## Пакетный конвертер из одного формата в другой с GUI интерфейсом
+            "docx -> pdf",
+            "docx -> odt",
+            "odt -> docx",
+            "odt -> pdf",
+            "rtf -> docx",
+            "rtf -> odt",
+            "rtf -> pdf",
+            "html -> docx",
+            "html -> odt",
+            "html -> pdf",
+            "pdf -> txt",
+            "pdf -> txt (OCR)",
+            "doc -> txt",
+            "docx -> txt"
+Требуется установка Libreoffice из https://www.libreoffice.org/download/download-libreoffice/
+Требуется установка Tesseract OCR из https://github.com/UB-Mannheim/tesseract/wiki
+
 
 ``` bash
 git clone https://github.com/SergeyMi37/converter-tk
