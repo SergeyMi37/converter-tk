@@ -36,6 +36,7 @@ pip install ocrmypdf[tesseract]
 Укажите исходную и целевую директорию
 ``` bash
 python converter-libreoffice.py 
+python converter-libre-ocr.py 
 ```
 
 ### Во время написания программы не один ИИ не пострадал, но потрепан был изрядно GigaChat (@gigachat_bot)
@@ -57,10 +58,17 @@ pip install pyinstaller
 Откройте терминал и перейдите в папку вашего проекта. Затем выполните команду:
 ```bash
 pyinstaller --onefile --windowed converter-libreoffice.py
-
-или
-pyinstaller converter-libreoffice.spec --clean 
 ```
+или
+```
+pyinstaller --noconfirm --onefile --console  "<Текущий путь>\converter-libreoffice.py"
+pyinstaller --noconfirm --onefile --console  "<Текущий путь>\converter-libre-ocr.py"
+```
+или через интерфейс 
+```
+pip install auto-py-to-exe
+auto-py-to-exe
+
 Параметры команды:
 - `--onefile`: Создает один файл `.exe`, содержащий всю необходимую библиотеку.
 - `--windowed`: Запускает ваше приложение без консольного окна.

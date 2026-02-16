@@ -219,20 +219,7 @@ class FileConverterApp:
     def convert_pdf_to_txt(self, input_file, output_file):
         """Конвертация PDF в текстовый файл с помощью PyPDF2"""
         try:
-            from PyPDF2 import PdfReader
-            
-            with open(input_file, 'rb') as f:
-                reader = PdfReader(f)
-                
-                text = ""
-                for page_num in range(len(reader.pages)):
-                    page = reader.pages[page_num]
-                    text += page.extract_text()
-                
-                with open(output_file, 'w', encoding='utf-8') as txt_file:
-                    txt_file.write(text)
-                
-                return True
+            return self.extract_text_from_pdf(input_file, output_file)
                 
         except ImportError:
             raise Exception("Для конвертации PDF в TXT требуется PyPDF2. Установите: pip install PyPDF2")
@@ -243,10 +230,12 @@ class FileConverterApp:
 
     def convert_pdf_to_txt_ocr(self, input_file, output_file):
         """Конвертация PDF в текстовый файл с использованием OCRmyPDF для сканированных PDF"""
+        print(f"Начинаем OCR-конвертацию PDF: {input_file}")
+        temp_pdf_path = None
         try:
             import ocrmypdf
-            import tempfile
             
+            print("Используем OCRmyPDF для обработки PDF")
             # Создаем временный файл для PDF с распознанным текстом
             with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as temp_pdf:
                 temp_pdf_path = temp_pdf.name
@@ -256,54 +245,158 @@ class FileConverterApp:
             ocrmypdf.ocr(input_file, temp_pdf_path, deskew=True)
             
             # Теперь извлекаем текст из обработанного PDF
-            from PyPDF2 import PdfReader
-            with open(temp_pdf_path, 'rb') as f:
-                reader = PdfReader(f)
-                text = ""
-                for page_num in range(len(reader.pages)):
-                    page = reader.pages[page_num]
-                    text += page.extract_text()
-                
-                with open(output_file, 'w', encoding='utf-8') as txt_file:
-                    txt_file.write(text)
+            success = self.extract_text_from_pdf(temp_pdf_path, output_file)
             
             # Удаляем временный файл
             os.unlink(temp_pdf_path)
             
-            return True
+            print("OCR-конвертация успешно завершена")
+            return success
             
         except ImportError:
+            print("OCRmyPDF не установлен")
             raise Exception("Для конвертации сканированного PDF в TXT требуется ocrmypdf. Установите: pip install ocrmypdf[tesseract]")
         except Exception as e:
-            # Проверяем, связан ли сесс с отсутствием Tesseract или других программ
             error_msg = str(e)
-            if "Could not find program" in error_msg and "tesseract" in error_msg:
-                raise Exception("Для OCR-конвертации PDF требуется Tesseract. Установите Tesseract OCR из https://github.com/UB-Mannheim/tesseract/wiki и добавьте в PATH")
-            elif "Could not find program" in error_msg and "unpaper" in error_msg:
-                # Пробуем запустить без параметров, требующих дополнительные программы
-                try:
-                    ocrmypdf.ocr(input_file, temp_pdf_path, deskew=True)
-                    
-                    # Теперь извлекаем текст из обработанного PDF
-                    from PyPDF2 import PdfReader
-                    with open(temp_pdf_path, 'rb') as f:
-                        reader = PdfReader(f)
-                        text = ""
-                        for page_num in range(len(reader.pages)):
-                            page = reader.pages[page_num]
-                            text += page.extract_text()
+            print(f"Ошибка при использовании OCRmyPDF: {error_msg}")
+            # Проверяем, связаны ли ошибки с отсутствием внешних программ
+            if "Could not find program" in error_msg:
+                if "tesseract" in error_msg:
+                    print("Tesseract не найден в системе")
+                    raise Exception("Для OCR-конвертации PDF требуется Tesseract. Установите Tesseract OCR из https://github.com/UB-Mannheim/tesseract/wiki и добавьте в PATH")
+                elif "gswin64c" in error_msg or "gswin32c" in error_msg or "gs" in error_msg:
+                    print("Ghostscript не найден в системе, пробуем альтернативный метод")
+                    # Попытка использовать более простую альтернативу, которая не зависит от Ghostscript
+                    try:
+                        # Проверяем наличие необходимых библиотек
+                        import fitz  # PyMuPDF
+                        import pytesseract
+                        from PIL import Image
+                    except ImportError:
+                        # Если нужные библиотеки не установлены, сообщаем об этом
+                        missing_packages = []
+                        try:
+                            import fitz
+                        except ImportError:
+                            missing_packages.append("PyMuPDF (install with: pip install PyMuPDF)")
                         
+                        try:
+                            import pytesseract
+                        except ImportError:
+                            missing_packages.append("pytesseract (install with: pip install pytesseract)")
+                        
+                        try:
+                            import PIL
+                        except ImportError:
+                            missing_packages.append("Pillow (install with: pip install Pillow)")
+                        
+                        if missing_packages:
+                            print(f"Отсутствуют необходимые пакеты для альтернативного метода: {', '.join(missing_packages)}")
+                            raise Exception(f"Для альтернативной OCR-конвертации PDF требуются пакеты: {', '.join(missing_packages)}")
+                        else:
+                            print("Альтернативный метод не удался из-за отсутствия пакетов")
+                            raise Exception(f"Ghostscript не найден. Установите Ghostscript и добавьте в PATH. Альтернативная попытка также не удалась: {str(e)}")
+                    
+                    try:
+                        print("Используем альтернативный метод с PyMuPDF и pytesseract")
+                        # Используем альтернативный способ конвертации с помощью tesseract напрямую
+                        import io
+                        
+                        # Открываем PDF и конвертируем каждую страницу
+                        doc = fitz.open(input_file)
+                        text = ""
+                        
+                        for page_num in range(doc.page_count):
+                            page = doc[page_num]
+                            
+                            # Извлекаем текст, если он есть
+                            page_text = page.get_text()
+                            
+                            # Если текста мало или его нет, пытаемся выполнить OCR
+                            if len(page_text.strip()) < 50:  # Если на странице мало текста
+                                print(f"Выполняем OCR для страницы {page_num + 1}")
+                                pix = page.get_pixmap(dpi=200)  # Получаем изображение страницы
+                                
+                                # Используем tesseract для OCR
+                                img_data = pix.tobytes("png")
+                                image = Image.open(io.BytesIO(img_data))
+                                
+                                # Используем tesseract для OCR с улучшенными параметрами для кириллицы
+                                custom_config = r'--oem 3 --psm 6 -l rus+eng'
+                                ocr_text = pytesseract.image_to_string(image, config=custom_config)
+                                text += ocr_text
+                            else:
+                                text += page_text
+                        
+                        # Сохраняем результат
                         with open(output_file, 'w', encoding='utf-8') as txt_file:
                             txt_file.write(text)
-                    
-                    # Удаляем временный файл
-                    os.unlink(temp_pdf_path)
-                    
-                    return True
-                except Exception as fallback_e:
-                    raise Exception(f"Ошибка при конвертации сканированного PDF в TXT: {str(fallback_e)}")
+                            
+                        doc.close()
+                        print("Альтернативная OCR-конвертация успешно завершена")
+                        return True
+                        
+                    except Exception as fallback_e:
+                        print(f"Альтернативный метод также не удался: {str(fallback_e)}")
+                        if temp_pdf_path and os.path.exists(temp_pdf_path):
+                            try:
+                                os.unlink(temp_pdf_path)
+                            except:
+                                pass
+                        raise Exception(f"Ghostscript не найден. Установите Ghostscript и добавьте в PATH. Альтернативная попытка также не удалась: {str(fallback_e)}")
+                elif "unpaper" in error_msg:
+                    print("unpaper не найден в системе")
+                    # Пробуем запустить без параметров, требующих дополнительные программы
+                    try:
+                        if temp_pdf_path is None:
+                            with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as temp_pdf:
+                                temp_pdf_path = temp_pdf.name
+                        ocrmypdf.ocr(input_file, temp_pdf_path, deskew=False)  # Отключаем использование unpaper
+                        
+                        # Теперь извлекаем текст из обработанного PDF
+                        success = self.extract_text_from_pdf(temp_pdf_path, output_file)
+                        
+                        # Удаляем временный файл
+                        os.unlink(temp_pdf_path)
+                        
+                        print("OCR-конвертация с отключенными дополнительными функциями завершена")
+                        return success
+                    except Exception as fallback_e:
+                        if temp_pdf_path and os.path.exists(temp_pdf_path):
+                            try:
+                                os.unlink(temp_pdf_path)
+                            except:
+                                pass
+                        raise Exception(f"Ошибка при конвертации сканированного PDF в TXT: {str(fallback_e)}")
+                else:
+                    # Обработка других возможных отсутствующих программ
+                    missing_program = error_msg.split("'")[1] if "'" in error_msg else "неизвестная программа"
+                    print(f"Не найдена внешняя программа: {missing_program}")
+                    raise Exception(f"Для OCR-конвертации PDF требуется {missing_program}. Установите и добавьте в PATH")
             else:
+                print(f"Общая ошибка при OCR-конвертации: {str(e)}")
+                if temp_pdf_path and os.path.exists(temp_pdf_path):
+                    try:
+                        os.unlink(temp_pdf_path)
+                    except:
+                        pass
                 raise Exception(f"Ошибка при конвертации сканированного PDF в TXT: {str(e)}")
+
+    def extract_text_from_pdf(self, pdf_path, output_file):
+        """Вспомогательная функция для извлечения текста из PDF файла"""
+        from PyPDF2 import PdfReader
+        
+        with open(pdf_path, 'rb') as f:
+            reader = PdfReader(f)
+            text = ""
+            for page_num in range(len(reader.pages)):
+                page = reader.pages[page_num]
+                text += page.extract_text()
+            
+            with open(output_file, 'w', encoding='utf-8') as txt_file:
+                txt_file.write(text)
+        
+        return True
 
     def convert_doc_to_txt(self, input_file, output_file):
         """Конвертация DOC/DOCX в текстовый файл с помощью LibreOffice"""
